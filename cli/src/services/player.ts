@@ -3,14 +3,14 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-// Use platform-native playback where possible to avoid sox dependency for output.
-// macOS: afplay (built into every macOS install)
-// Linux: sox play (installed as a Homebrew/apt dependency)
+// Use platform-native audio playback — no sox required.
+// macOS: afplay (built into macOS)
+// Linux: aplay (built into alsa-utils, pre-installed on most distros)
 function buildPlayArgs(filePath: string): { cmd: string; args: string[] } {
   if (process.platform === 'darwin') {
     return { cmd: 'afplay', args: [filePath] };
   }
-  return { cmd: 'play', args: ['-q', filePath] };
+  return { cmd: 'aplay', args: ['-q', filePath] };
 }
 
 export async function playAudio(audioBase64: string): Promise<void> {

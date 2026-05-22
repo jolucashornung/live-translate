@@ -15,12 +15,15 @@ vi.mock('os', async (importOriginal) => {
   };
 });
 
-vi.mock('node:child_process', () => ({
+vi.mock('child_process', () => ({
   spawn: vi.fn(),
-  execSync: vi.fn(),
 }));
 
-import { voicesExist, getVoicesDir, stopServices } from '../src/services/processes.js';
+import {
+  voicesExist,
+  getVoicesDir,
+  stopServices,
+} from '../src/services/processes.js';
 
 beforeEach(() => {
   testHome = fs.mkdtempSync(path.join(os.tmpdir(), 'waxberry-processes-test-'));
@@ -61,6 +64,7 @@ describe('stopServices', () => {
   it('removes PID file even when the process is already gone', async () => {
     const pidsDir = path.join(testHome, '.waxberry', 'pids');
     fs.mkdirSync(pidsDir, { recursive: true });
+    // PID 999999999 will not exist on any real system
     fs.writeFileSync(path.join(pidsDir, 'asr.pid'), '999999999');
 
     await stopServices();

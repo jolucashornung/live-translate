@@ -1,0 +1,62 @@
+services:
+  orchestrator:
+    build: ./services/orchestrator
+    ports:
+      - "8000:8000"
+    environment:
+      ASR_URL: http://asr:8001
+      TRANSLATION_URL: http://translation:8002
+      TTS_URL: http://tts:8003
+    depends_on:
+      - asr
+      - translation
+      - tts
+
+  asr:
+    build: ./services/asr
+    ports:
+      - "8001:8001"
+    environment:
+      WHISPER_MODEL_SIZE: base
+      WHISPER_DEVICE: auto
+    volumes:
+      - whisper-models:/root/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  translation:
+    build: ./services/translation
+    ports:
+      - "8002:8002"
+    environment:
+      MODEL_EN_ZH: Helsinki-NLP/opus-mt-en-zh
+      MODEL_ZH_EN: Helsinki-NLP/opus-mt-zh-en
+      DEVICE: auto
+    volumes:
+      - opus-models:/root/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  tts:
+    build: ./services/tts
+    ports:
+      - "8003:8003"
+    environment:
+      PIPER_VOICE_DIR: /app/voices
+    volumes:
+      - piper-voices:/app/voices
+
+volumes:
+  whisper-models:
+  opus-models:
+  piper-voices:

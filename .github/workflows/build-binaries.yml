@@ -1,0 +1,121 @@
+name: Build and publish platform binaries
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'binaries-v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14        # Apple Silicon
+            platform: darwin-arm64
+          - os: macos-13        # Intel
+            platform: darwin-x64
+          - os: ubuntu-22.04
+            platform: linux-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build espeak-ng (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install espeak-ng dylibbundler
+          mkdir -p bundle/espeak-ng/lib
+
+          ESPEAK_BIN=$(brew --prefix espeak-ng)/bin/espeak-ng
+          ESPEAK_DATA=$(brew --prefix espeak-ng)/lib/espeak-ng-data
+
+          cp "$ESPEAK_BIN" bundle/espeak-ng/
+
+          # Bundle all dylibs so the binary is self-contained
+          dylibbundler -od -b \
+            -x bundle/espeak-ng/espeak-ng \
+            -d bundle/espeak-ng/lib/ \
+            -p @executable_path/lib/ \
+            2>/dev/null || true
+
+          # Copy espeak-ng language data
+          cp -r "$ESPEAK_DATA" bundle/espeak-ng/
+
+          chmod +x bundle/espeak-ng/espeak-ng
+          tar -czf espeak-ng-${{ matrix.platform }}.tar.gz -C bundle/espeak-ng .
+
+      - name: Build sox (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install sox dylibbundler
+          mkdir -p bundle/sox/lib
+
+          SOX_PREFIX=$(brew --prefix sox)
+          cp "$SOX_PREFIX/bin/sox" bundle/sox/
+
+          dylibbundler -od -b \
+            -x bundle/sox/sox \
+            -d bundle/sox/lib/ \
+            -p @executable_path/lib/ \
+            2>/dev/null || true
+
+          chmod +x bundle/sox/sox
+
+          # Create 'rec' and 'play' symlinks (sox aliases)
+          ln -sf sox bundle/sox/rec
+          ln -sf sox bundle/sox/play
+
+          tar -czf sox-${{ matrix.platform }}.tar.gz -C bundle/sox .
+
+      - name: Build espeak-ng (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y espeak-ng patchelf
+          mkdir -p bundle/espeak-ng/lib
+
+          cp /usr/bin/espeak-ng bundle/espeak-ng/
+
+          # Collect and patch shared libraries
+          ldd /usr/bin/espeak-ng | awk '/=>/ && !/libc\.so/ && !/libpthread/ && !/libdl\.so/ && !/libm\.so/ {print $3}' \
+            | xargs -I{} cp {} bundle/espeak-ng/lib/ 2>/dev/null || true
+
+          patchelf --set-rpath '$ORIGIN/lib' bundle/espeak-ng/espeak-ng 2>/dev/null || true
+
+          # Copy espeak-ng data
+          cp -r /usr/lib/x86_64-linux-gnu/espeak-ng-data bundle/espeak-ng/ 2>/dev/null || \
+          cp -r /usr/share/espeak-ng-data bundle/espeak-ng/ 2>/dev/null || true
+
+          chmod +x bundle/espeak-ng/espeak-ng
+          tar -czf espeak-ng-${{ matrix.platform }}.tar.gz -C bundle/espeak-ng .
+
+      - name: Build sox (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y sox patchelf
+          mkdir -p bundle/sox/lib
+
+          cp /usr/bin/sox bundle/sox/
+
+          ldd /usr/bin/sox | awk '/=>/ && !/libc\.so/ && !/libpthread/ && !/libdl\.so/ && !/libm\.so/ {print $3}' \
+            | xargs -I{} cp {} bundle/sox/lib/ 2>/dev/null || true
+
+          patchelf --set-rpath '$ORIGIN/lib' bundle/sox/sox 2>/dev/null || true
+
+          chmod +x bundle/sox/sox
+          ln -sf sox bundle/sox/rec
+          ln -sf sox bundle/sox/play
+
+          tar -czf sox-${{ matrix.platform }}.tar.gz -C bundle/sox .
+
+      - name: Upload binaries to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            espeak-ng-${{ matrix.platform }}.tar.gz
+            sox-${{ matrix.platform }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

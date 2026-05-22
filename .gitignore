@@ -1,0 +1,12 @@
+prompts/
+.claude
+.DS_Store
+01-translation-service.md
+02-tts-service.md
+03-asr-service.md
+04-orchestrator-service.md
+05-cli-client.md
+06-integration.md
+CLAUDE.md
+COOKBOOK.md
+files.zip

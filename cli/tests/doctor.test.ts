@@ -49,7 +49,7 @@ async function setupOpusMtConfig(): Promise<void> {
 }
 
 const FULL_PASS_EXECS: Record<string, string> = {
-  'espeak-ng --version': 'eSpeak NG text-to-speech: 1.51.1  Data at: /usr/lib/x86_64-linux-gnu/espeak-ng-data',
+  'espeak-ng --version': 'eSpeak NG text-to-speech: 1.51.1',
   'sox --version': 'SoX v14.4.2',
   'rec -n': '',
   'play -n': '',
@@ -79,7 +79,7 @@ describe('runDoctor', () => {
     expect(output).not.toContain('Python');
   });
 
-  it('espeak-ng check always passes — will auto-download if missing', async () => {
+  it('espeak-ng check passes when installed', async () => {
     await setupOpusMtConfig();
     stubExecSync(FULL_PASS_EXECS);
 
@@ -91,7 +91,7 @@ describe('runDoctor', () => {
     expect(process.exitCode).not.toBe(1);
   });
 
-  it('espeak-ng check shows auto-download message when not on system', async () => {
+  it('espeak-ng check fails when not installed', async () => {
     await setupOpusMtConfig();
     mockExecSync.mockImplementation((cmd: string) => {
       if (cmd.includes('espeak-ng')) throw new Error('not found');
@@ -104,13 +104,10 @@ describe('runDoctor', () => {
     const { runDoctor } = await import('../src/commands/doctor.js');
     await runDoctor();
 
-    // Still passes — binary will be auto-downloaded on waxberry start
-    expect(process.exitCode).not.toBe(1);
-    const output = vi.mocked(console.log).mock.calls.flat().join('\n');
-    expect(output).toContain('auto-download');
+    expect(process.exitCode).toBe(1);
   });
 
-  it('Sox check always passes — will auto-download if missing', async () => {
+  it('Sox check passes when sox is installed', async () => {
     await setupOpusMtConfig();
     stubExecSync(FULL_PASS_EXECS);
 
@@ -118,11 +115,10 @@ describe('runDoctor', () => {
     await runDoctor();
 
     const output = vi.mocked(console.log).mock.calls.flat().join('\n');
-    expect(output).toContain('Sox');
-    expect(process.exitCode).not.toBe(1);
+    expect(output).toContain('SoX v14.4.2');
   });
 
-  it('Sox check shows auto-download message when not on system', async () => {
+  it('Sox check fails when sox is not installed', async () => {
     await setupOpusMtConfig();
     mockExecSync.mockImplementation((cmd: string) => {
       if (cmd.includes('sox')) throw new Error('not found');
@@ -135,9 +131,7 @@ describe('runDoctor', () => {
     const { runDoctor } = await import('../src/commands/doctor.js');
     await runDoctor();
 
-    expect(process.exitCode).not.toBe(1);
-    const output = vi.mocked(console.log).mock.calls.flat().join('\n');
-    expect(output).toContain('auto-download');
+    expect(process.exitCode).toBe(1);
   });
 
   it('Config check shows provider name when config exists', async () => {

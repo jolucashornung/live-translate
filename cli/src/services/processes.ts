@@ -1,11 +1,9 @@
-import { spawn } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Config } from '../utils/constants.js';
-import { resolveBinary } from '../utils/binaries.js';
-import { ensureRecorderReady } from './recorder.js';
 
 // All paths are functions so os.homedir() is evaluated at call time (testable via mocks).
 function getWaxberryHome(): string { return path.join(os.homedir(), '.waxberry'); }
@@ -34,22 +32,39 @@ const SERVICE_DEFS: ServiceDef[] = [
   },
 ];
 
-function findPkgRoot(): string {
+// Locate the Python services directory.
+// Priority: WAXBERRY_SERVICES_DIR env var (set by Homebrew wrapper script)
+//           → services/ at the monorepo root (development)
+function findServicesDir(): string {
+  if (process.env['WAXBERRY_SERVICES_DIR']) {
+    return process.env['WAXBERRY_SERVICES_DIR'];
+  }
   const thisFile = fileURLToPath(import.meta.url);
-  // dist/services/processes.js → ../../ → package root (cli/)
-  return path.resolve(path.dirname(thisFile), '..', '..');
+  // dist/services/processes.js → ../../.. → repo root → services/
+  const dev = path.resolve(path.dirname(thisFile), '..', '..', '..', 'services');
+  if (fs.existsSync(dev)) return dev;
+  throw new Error(
+    'Cannot find waxberry services directory. Install via Homebrew or set WAXBERRY_SERVICES_DIR.'
+  );
+}
+
+// Locate uvicorn.
+// Priority: WAXBERRY_UVICORN env var (set by Homebrew wrapper script)
+//           → uvicorn on system PATH
+function findUvicorn(): string {
+  if (process.env['WAXBERRY_UVICORN']) return process.env['WAXBERRY_UVICORN'];
+  try {
+    return execSync('which uvicorn', { stdio: 'pipe' }).toString().trim();
+  } catch {
+    throw new Error('uvicorn not found. Install waxberry with Homebrew: brew install waxberry');
+  }
 }
 
 function pidFile(name: string): string { return path.join(getPidsDir(), `${name}.pid`); }
 function logFile(name: string): string { return path.join(getLogsDir(), `${name}.log`); }
 
 function isProcessRunning(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
+  try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
 function readPid(name: string): number | null {
@@ -66,47 +81,6 @@ export function voicesExist(): boolean {
   );
 }
 
-const VOICE_URLS: Array<{ url: string; file: string }> = [
-  {
-    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx',
-    file: 'en_US-lessac-medium.onnx',
-  },
-  {
-    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json',
-    file: 'en_US-lessac-medium.onnx.json',
-  },
-  {
-    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx',
-    file: 'zh_CN-huayan-medium.onnx',
-  },
-  {
-    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json',
-    file: 'zh_CN-huayan-medium.onnx.json',
-  },
-];
-
-async function downloadWithFetch(url: string, dest: string): Promise<void> {
-  // Follow redirects — Node 18+ fetch follows redirects automatically
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download ${url}: HTTP ${response.status}`);
-  }
-  const buf = await response.arrayBuffer();
-  fs.writeFileSync(dest, Buffer.from(buf));
-}
-
-async function downloadVoices(onProgress?: (msg: string) => void): Promise<void> {
-  const voicesDir = getVoicesDir();
-  fs.mkdirSync(voicesDir, { recursive: true });
-
-  for (const { url, file } of VOICE_URLS) {
-    const dest = path.join(voicesDir, file);
-    if (fs.existsSync(dest)) continue;
-    onProgress?.(`Downloading ${file}...`);
-    await downloadWithFetch(url, dest);
-  }
-}
-
 function buildTranslationEnv(config: Config): NodeJS.ProcessEnv {
   return {
     TRANSLATION_PROVIDER: config.provider,
@@ -120,19 +94,11 @@ export async function startServices(
   config: Config,
   onProgress?: (msg: string) => void
 ): Promise<void> {
-  const pkgRoot = findPkgRoot();
+  const servicesDir = findServicesDir();
+  const uvicorn = findUvicorn();
 
   fs.mkdirSync(getPidsDir(), { recursive: true });
   fs.mkdirSync(getLogsDir(), { recursive: true });
-
-  if (!voicesExist()) {
-    onProgress?.('Downloading voice models (~100 MB)...');
-    await downloadVoices(onProgress);
-  }
-
-  // Resolve espeak-ng and sox — downloads bundled binary if not already installed.
-  await resolveBinary('espeak-ng', onProgress);
-  await ensureRecorderReady(onProgress);
 
   onProgress?.('Starting services...');
 
@@ -140,22 +106,24 @@ export async function startServices(
     const existing = readPid(svc.name);
     if (existing !== null && isProcessRunning(existing)) continue;
 
-    const script = path.join(pkgRoot, 'dist', 'server', `${svc.name}.js`);
-
     const env: NodeJS.ProcessEnv = {
       ...process.env,
-      PORT: String(svc.port),
-      PIPER_VOICE_DIR: getVoicesDir(),
+      PIPER_VOICE_DIR: process.env['PIPER_VOICE_DIR'] ?? getVoicesDir(),
       ...(svc.name === 'translation' ? buildTranslationEnv(config) : {}),
       ...(svc.extraEnv ?? {}),
     };
 
     const logFd = fs.openSync(logFile(svc.name), 'a');
-    const proc = spawn('node', [script], {
-      env,
-      detached: true,
-      stdio: ['ignore', logFd, logFd],
-    });
+    const proc = spawn(
+      uvicorn,
+      ['app.main:app', '--host', '0.0.0.0', '--port', String(svc.port)],
+      {
+        cwd: path.join(servicesDir, svc.name),
+        env,
+        detached: true,
+        stdio: ['ignore', logFd, logFd],
+      }
+    );
     proc.unref();
     fs.closeSync(logFd);
     fs.writeFileSync(pidFile(svc.name), String(proc.pid));

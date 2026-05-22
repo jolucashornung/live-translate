@@ -1,9 +1,8 @@
 import { execSync } from 'child_process';
 import chalk from 'chalk';
-import { loadConfig, configExists, maskApiKey, isValidProvider } from '../services/configStore.js';
+import { loadConfig, configExists, maskApiKey } from '../services/configStore.js';
 import { PROVIDERS } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
-import { isBinaryAvailable } from '../utils/binaries.js';
 
 interface CheckResult {
   label: string;
@@ -29,21 +28,22 @@ function checkNodeVersion(): CheckResult {
   };
 }
 
-
 function checkEspeakNg(): CheckResult {
-  const available = isBinaryAvailable('espeak-ng');
-  const detail = available
-    ? tryExec('espeak-ng --version 2>&1') ?? 'bundled/cached'
-    : 'Not found — will auto-download on `waxberry start`';
-  return { label: 'espeak-ng', passed: true, detail };
+  const out = tryExec('espeak-ng --version 2>&1');
+  return {
+    label: 'espeak-ng',
+    passed: out !== null,
+    detail: out ?? 'Not installed — run: brew install waxberry',
+  };
 }
 
 function checkSox(): CheckResult {
-  const available = isBinaryAvailable('sox');
-  const detail = available
-    ? tryExec('sox --version 2>&1') ?? 'bundled/cached'
-    : 'Not found — will auto-download on `waxberry start`';
-  return { label: 'Sox', passed: true, detail };
+  const out = tryExec('sox --version 2>&1');
+  return {
+    label: 'Sox',
+    passed: out !== null,
+    detail: out ?? 'Not installed — run: brew install waxberry',
+  };
 }
 
 function checkMicrophone(): CheckResult {

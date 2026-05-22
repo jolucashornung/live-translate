@@ -6,9 +6,13 @@ on:
     tags:
       - 'binaries-v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-14        # Apple Silicon
@@ -29,68 +33,92 @@ jobs:
           brew install espeak-ng dylibbundler
           mkdir -p bundle/espeak-ng/lib
 
-          ESPEAK_BIN=$(brew --prefix espeak-ng)/bin/espeak-ng
-          ESPEAK_DATA=$(brew --prefix espeak-ng)/lib/espeak-ng-data
+          ESPEAK_PREFIX=$(brew --prefix espeak-ng)
+          ESPEAK_BIN="$ESPEAK_PREFIX/bin/espeak-ng"
+
+          # Locate espeak-ng data directory (location varies by Homebrew version)
+          ESPEAK_DATA=$(find "$ESPEAK_PREFIX" /opt/homebrew /usr/local -name "espeak-ng-data" -type d 2>/dev/null | head -1)
+
+          echo "Binary: $ESPEAK_BIN"
+          echo "Data:   $ESPEAK_DATA"
 
           cp "$ESPEAK_BIN" bundle/espeak-ng/
 
-          # Bundle all dylibs so the binary is self-contained
           dylibbundler -od -b \
             -x bundle/espeak-ng/espeak-ng \
             -d bundle/espeak-ng/lib/ \
-            -p @executable_path/lib/ \
-            2>/dev/null || true
+            -p @executable_path/lib/
 
-          # Copy espeak-ng language data
-          cp -r "$ESPEAK_DATA" bundle/espeak-ng/
+          if [ -n "$ESPEAK_DATA" ]; then
+            cp -r "$ESPEAK_DATA" bundle/espeak-ng/
+          fi
 
           chmod +x bundle/espeak-ng/espeak-ng
           tar -czf espeak-ng-${{ matrix.platform }}.tar.gz -C bundle/espeak-ng .
+          echo "espeak-ng archive:"
+          tar -tzf espeak-ng-${{ matrix.platform }}.tar.gz | head -20
 
       - name: Build sox (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install sox dylibbundler
+          brew install sox
           mkdir -p bundle/sox/lib
 
-          SOX_PREFIX=$(brew --prefix sox)
-          cp "$SOX_PREFIX/bin/sox" bundle/sox/
+          SOX_BIN=$(brew --prefix sox)/bin/sox
+
+          echo "sox binary: $SOX_BIN"
+
+          cp "$SOX_BIN" bundle/sox/
 
           dylibbundler -od -b \
             -x bundle/sox/sox \
             -d bundle/sox/lib/ \
-            -p @executable_path/lib/ \
-            2>/dev/null || true
+            -p @executable_path/lib/
 
           chmod +x bundle/sox/sox
-
-          # Create 'rec' and 'play' symlinks (sox aliases)
+          # Create rec/play symlinks — sox recognises argv[0] to switch mode
           ln -sf sox bundle/sox/rec
           ln -sf sox bundle/sox/play
 
           tar -czf sox-${{ matrix.platform }}.tar.gz -C bundle/sox .
+          echo "sox archive:"
+          tar -tzf sox-${{ matrix.platform }}.tar.gz | head -20
 
       - name: Build espeak-ng (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
+          sudo apt-get update -q
           sudo apt-get install -y espeak-ng patchelf
           mkdir -p bundle/espeak-ng/lib
 
           cp /usr/bin/espeak-ng bundle/espeak-ng/
 
-          # Collect and patch shared libraries
-          ldd /usr/bin/espeak-ng | awk '/=>/ && !/libc\.so/ && !/libpthread/ && !/libdl\.so/ && !/libm\.so/ {print $3}' \
-            | xargs -I{} cp {} bundle/espeak-ng/lib/ 2>/dev/null || true
+          # Bundle non-libc shared libs
+          ldd /usr/bin/espeak-ng \
+            | awk '/=>/ { print $3 }' \
+            | grep -v '^$' \
+            | grep -Ev 'libc\.so|libpthread|libdl\.so|libm\.so|ld-linux' \
+            | while read lib; do [ -f "$lib" ] && cp "$lib" bundle/espeak-ng/lib/; done
 
-          patchelf --set-rpath '$ORIGIN/lib' bundle/espeak-ng/espeak-ng 2>/dev/null || true
+          patchelf --set-rpath '$ORIGIN/lib' bundle/espeak-ng/espeak-ng
 
-          # Copy espeak-ng data
-          cp -r /usr/lib/x86_64-linux-gnu/espeak-ng-data bundle/espeak-ng/ 2>/dev/null || \
-          cp -r /usr/share/espeak-ng-data bundle/espeak-ng/ 2>/dev/null || true
+          # Copy espeak-ng data (try multiple paths)
+          for DATA_DIR in \
+            /usr/lib/x86_64-linux-gnu/espeak-ng-data \
+            /usr/lib/aarch64-linux-gnu/espeak-ng-data \
+            /usr/share/espeak-ng-data \
+            /usr/lib/espeak-ng-data; do
+            if [ -d "$DATA_DIR" ]; then
+              cp -r "$DATA_DIR" bundle/espeak-ng/
+              echo "Copied data from $DATA_DIR"
+              break
+            fi
+          done
 
           chmod +x bundle/espeak-ng/espeak-ng
           tar -czf espeak-ng-${{ matrix.platform }}.tar.gz -C bundle/espeak-ng .
+          echo "espeak-ng archive:"
+          tar -tzf espeak-ng-${{ matrix.platform }}.tar.gz | head -20
 
       - name: Build sox (Linux)
         if: runner.os == 'Linux'
@@ -100,16 +128,21 @@ jobs:
 
           cp /usr/bin/sox bundle/sox/
 
-          ldd /usr/bin/sox | awk '/=>/ && !/libc\.so/ && !/libpthread/ && !/libdl\.so/ && !/libm\.so/ {print $3}' \
-            | xargs -I{} cp {} bundle/sox/lib/ 2>/dev/null || true
+          ldd /usr/bin/sox \
+            | awk '/=>/ { print $3 }' \
+            | grep -v '^$' \
+            | grep -Ev 'libc\.so|libpthread|libdl\.so|libm\.so|ld-linux' \
+            | while read lib; do [ -f "$lib" ] && cp "$lib" bundle/sox/lib/; done
 
-          patchelf --set-rpath '$ORIGIN/lib' bundle/sox/sox 2>/dev/null || true
+          patchelf --set-rpath '$ORIGIN/lib' bundle/sox/sox
 
           chmod +x bundle/sox/sox
           ln -sf sox bundle/sox/rec
           ln -sf sox bundle/sox/play
 
           tar -czf sox-${{ matrix.platform }}.tar.gz -C bundle/sox .
+          echo "sox archive:"
+          tar -tzf sox-${{ matrix.platform }}.tar.gz | head -20
 
       - name: Upload binaries to release
         uses: softprops/action-gh-release@v2
@@ -117,5 +150,3 @@ jobs:
           files: |
             espeak-ng-${{ matrix.platform }}.tar.gz
             sox-${{ matrix.platform }}.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -26,6 +26,12 @@ jobs:
             platform: linux-x64
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+      HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
 
     steps:
       - uses: actions/checkout@v4

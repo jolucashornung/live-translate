@@ -5,7 +5,7 @@ import { pipeline, env } from '@huggingface/transformers';
 import { createServer, wavBase64ToFloat32 } from './shared.js';
 import type { Routes } from './shared.js';
 
-env.cacheDir = path.join(os.homedir(), '.waxberry', 'models');
+env.cacheDir = path.join(os.homedir(), '.live-translate', 'models');
 
 const MODEL = 'onnx-community/whisper-base';
 const PORT = parseInt(process.env['PORT'] ?? '8001', 10);
@@ -31,9 +31,9 @@ export const routes: Routes = {
       throw new Error('Invalid request: audio_base64 is required');
     }
 
-    const { samples, sampleRate } = wavBase64ToFloat32(req.audio_base64);
+    const { samples } = wavBase64ToFloat32(req.audio_base64);
 
-    const result = await transcriber({ data: samples, sampling_rate: sampleRate });
+    const result = await transcriber(samples);
     const output = Array.isArray(result) ? result[0] : result;
     const text = (output as { text: string }).text?.trim() ?? '';
     const language = detectLanguage(text);

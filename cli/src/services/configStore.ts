@@ -4,7 +4,7 @@ import os from 'os';
 import { type Config, DEFAULT_CONFIG, PROVIDERS, type ProviderKey } from '../utils/constants.js';
 
 export function getConfigPath(): string {
-  return path.join(os.homedir(), '.waxberry', 'config.json');
+  return path.join(os.homedir(), '.live-translate', 'config.json');
 }
 
 export function configExists(): boolean {

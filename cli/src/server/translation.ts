@@ -5,7 +5,7 @@ import { pipeline, env } from '@huggingface/transformers';
 import { createServer } from './shared.js';
 import type { Routes } from './shared.js';
 
-env.cacheDir = path.join(os.homedir(), '.waxberry', 'models');
+env.cacheDir = path.join(os.homedir(), '.live-translate', 'models');
 
 const PROVIDER = process.env['TRANSLATION_PROVIDER'] ?? 'opus-mt';
 const TRANSLATION_MODEL = process.env['TRANSLATION_MODEL'] ?? '';
@@ -23,19 +23,19 @@ function buildSystemPrompt(sourceLang: string, targetLang: string): string {
   return `You are a translator. Translate the following text from ${source} to ${target}. Return only the translation, no explanation.`;
 }
 
-type TranslationPipeline = Awaited<ReturnType<typeof pipeline>>;
+type TranslationFn = (text: string) => Promise<Array<{ translation_text: string }>>;
 
 interface OpusMtModels {
-  'en-zh': TranslationPipeline;
-  'zh-en': TranslationPipeline;
+  'en-zh': TranslationFn;
+  'zh-en': TranslationFn;
 }
 
 let opusMtModels: OpusMtModels | null = null;
 
 if (PROVIDER === 'opus-mt') {
   opusMtModels = {
-    'en-zh': await pipeline('translation', 'Xenova/opus-mt-en-zh'),
-    'zh-en': await pipeline('translation', 'Xenova/opus-mt-zh-en'),
+    'en-zh': await pipeline('translation', 'Xenova/opus-mt-en-zh') as unknown as TranslationFn,
+    'zh-en': await pipeline('translation', 'Xenova/opus-mt-zh-en') as unknown as TranslationFn,
   };
 }
 

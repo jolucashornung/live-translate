@@ -10,7 +10,7 @@ import { runTranslate } from './commands/translate.js';
 const program = new Command();
 
 program
-  .name('waxberry')
+  .name('live-translate')
   .description('Real-time English ↔ Mandarin speech translator')
   .version('0.1.0')
   .action(runTranslate);

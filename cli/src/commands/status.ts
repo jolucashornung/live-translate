@@ -11,7 +11,7 @@ export async function runStatus(): Promise<void> {
 
   if (!status.healthy) {
     console.log(chalk.red('  ✗ Services are not running.'));
-    console.log('    Run `waxberry start` to start them.');
+    console.log('    Run `live-translate start` to start them.');
     console.log('');
     process.exitCode = 1;
     return;

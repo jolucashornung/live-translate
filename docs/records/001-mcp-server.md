@@ -15,15 +15,15 @@ Add waxberry as an MCP server so Claude agents (Claude Code, Claude Desktop, cus
 
 ## Design
 
-### New file: `mcp/server.py`
+### New package: `mcp/` (TypeScript, npm package `live-translate`)
 
-A thin FastMCP wrapper (~50 lines) that proxies calls to the orchestrator's existing REST API. The Docker services — or native TypeScript processes — don't change.
+A thin MCP server (~50 lines) using `@modelcontextprotocol/sdk` that proxies calls to the orchestrator's existing REST API. The TypeScript services don't change.
 
 ```
 Claude agent
     │  calls tool
     ▼
-mcp/server.py  (FastMCP, stdio transport)
+mcp/src/index.ts  (@modelcontextprotocol/sdk, stdio transport)
     │  HTTP POST
     ▼
 Orchestrator :8000  (existing, unchanged)
@@ -31,14 +31,12 @@ Orchestrator :8000  (existing, unchanged)
 
 ### Tools exposed
 
-```python
-@mcp.tool()
-async def translate_speech(audio_base64: str, sample_rate: int = 16000) -> TranslationResult:
-    """Translate speech audio. Returns original text, translation, and synthesised audio."""
+```typescript
+// Translate speech audio. Returns original text, translation, and synthesised audio.
+async function translateSpeech(audioBase64: string, sampleRate = 16000): Promise<TranslationResult>
 
-@mcp.tool()
-async def health_check() -> dict:
-    """Check whether all waxberry services are running."""
+// Check whether all waxberry services are running.
+async function healthCheck(): Promise<HealthResult>
 ```
 
 `TranslationResult` mirrors the orchestrator's existing response schema:
@@ -54,9 +52,9 @@ async def health_check() -> dict:
 ```json
 {
   "mcpServers": {
-    "waxberry": {
-      "command": "uvx",
-      "args": ["waxberry-mcp"]
+    "live-translate": {
+      "command": "npx",
+      "args": ["live-translate"]
     }
   }
 }
@@ -64,14 +62,14 @@ async def health_check() -> dict:
 
 ## Distribution plan
 
-1. Publish `waxberry-mcp` as a minimal PyPI package (just `mcp/` + dependencies)
+1. Publish `live-translate` to npm (`cli/` package — includes both CLI and MCP server)
 2. Submit to Anthropic's official MCP server list (PR to docs repo)
 3. Submit to `punkpeye/awesome-mcp-servers`
 4. Post a demo (GIF or short video) to Anthropic Discord + Claude subreddit
 
 ## Acceptance criteria
 
-- [ ] `uvx waxberry-mcp` starts the MCP server without cloning the repo
+- [x] `npx live-translate` starts the MCP server without cloning the repo
 - [ ] Claude Desktop can call `translate_speech` and receive a valid `TranslationResult`
 - [ ] `health_check` returns degraded status if services are not running
 - [ ] README has a "Use as MCP server" section with the config snippet

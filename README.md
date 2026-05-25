@@ -1,4 +1,4 @@
-# waxberry — English ↔ 中文
+# live-translate — English ↔ 中文
 
 Fully local speech-to-speech translator between English and Mandarin Chinese.
 No cloud APIs required. All audio processing runs on your machine. MIT licensed.
@@ -6,32 +6,32 @@ No cloud APIs required. All audio processing runs on your machine. MIT licensed.
 ## Install
 
 ```bash
-npm install -g waxberry
+npm install -g live-translate
 ```
 
 ## Quick Start
 
 ```bash
-waxberry config   # choose a translation provider (runs automatically on first start)
-waxberry start    # download models and start backend services
-waxberry          # press SPACE to record, SPACE again to translate
-waxberry stop     # stop services when done
+live-translate config   # choose a translation provider (runs automatically on first start)
+live-translate start    # download models and start backend services
+live-translate          # press SPACE to record, SPACE again to translate
+live-translate stop     # stop services when done
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `waxberry` | Start translating (SPACE to start/stop recording, Q or Ctrl-C to quit) |
-| `waxberry config` | Configure your translation provider |
-| `waxberry start` | Download models and start backend services |
-| `waxberry stop` | Stop all backend services |
-| `waxberry status` | Show service health and active provider |
-| `waxberry doctor` | Check prerequisites |
+| `live-translate` | Start translating (SPACE to start/stop recording, Q or Ctrl-C to quit) |
+| `live-translate config` | Configure your translation provider |
+| `live-translate start` | Download models and start backend services |
+| `live-translate stop` | Stop all backend services |
+| `live-translate status` | Show service health and active provider |
+| `live-translate doctor` | Check prerequisites |
 
 ## Translation Providers
 
-Run `waxberry config` to choose a backend. The default is Opus-MT (fully local, no API key needed).
+Run `live-translate config` to choose a backend. The default is Opus-MT (fully local, no API key needed).
 
 | Provider | Type | Quality | Cost |
 |----------|------|---------|------|
@@ -45,15 +45,15 @@ For cloud providers, audio never leaves your machine — only the transcribed te
 
 ```bash
 # Interactive setup
-waxberry config
+live-translate config
 
 # Or pass flags directly
-waxberry config --provider anthropic --api-key sk-ant-...
-waxberry config --provider ollama --model qwen2.5:14b
-waxberry config --provider deepseek --api-key <key>
+live-translate config --provider anthropic --api-key sk-ant-...
+live-translate config --provider ollama --model qwen2.5:14b
+live-translate config --provider deepseek --api-key <key>
 ```
 
-Configuration is saved to `~/.waxberry/config.json`.
+Configuration is saved to `~/.live-translate/config.json`.
 
 ## How It Works
 
@@ -65,19 +65,19 @@ Speech is recorded locally. Whisper transcribes it, the configured provider tran
 
 ### First Run
 
-`waxberry start` automatically:
-1. Downloads Piper voice models (~100 MB, English and Mandarin) to `~/.waxberry/voices/`
+`live-translate start` automatically:
+1. Downloads Piper voice models (~100 MB, English and Mandarin) to `~/.live-translate/voices/`
 2. Installs `sox` and `espeak-ng` if they are not already on your system
 3. Starts four backend services as local processes
 4. Waits up to 3 minutes for all services to become healthy
 
-Logs are written to `~/.waxberry/logs/`.
+Logs are written to `~/.live-translate/logs/`.
 
 ## Prerequisites
 
 - Node.js 18+
 
-Run `waxberry doctor` to verify your setup. `sox` and `espeak-ng` are downloaded automatically on first run if missing.
+Run `live-translate doctor` to verify your setup. `sox` and `espeak-ng` are downloaded automatically on first run if missing.
 
 ## Architecture
 
@@ -89,7 +89,7 @@ Run `waxberry doctor` to verify your setup. `sox` and `espeak-ng` are downloaded
 | TTS | 8003 | TypeScript | Text → speech (Piper) |
 | CLI | — | TypeScript | User interface and service management |
 
-Services run as local processes managed by the CLI. State and config live in `~/.waxberry/`.
+Services run as local processes managed by the CLI. State and config live in `~/.live-translate/`.
 
 ## Development
 
@@ -107,14 +107,14 @@ cd cli && npm run build
 # Unit tests (no running services required)
 cd cli && npm test
 
-# Integration tests (requires waxberry start)
+# Integration tests (requires live-translate start)
 python -m pytest tests/integration/ -v
 ```
 
 ### Project Structure
 
 ```
-waxberry/
+live-translate/
 ├── cli/                     # TypeScript npm package (the whole product)
 │   ├── src/
 │   │   ├── commands/        # doctor, config, start, stop, status, translate

@@ -34,7 +34,7 @@ function checkEspeakNg(): CheckResult {
   const available = isBinaryAvailable('espeak-ng');
   const detail = available
     ? tryExec('espeak-ng --version 2>&1') ?? 'bundled/cached'
-    : 'Not found — will auto-download on `waxberry start`';
+    : 'Not found — will auto-download on `live-translate start`';
   return { label: 'espeak-ng', passed: true, detail };
 }
 
@@ -42,7 +42,7 @@ function checkSox(): CheckResult {
   const available = isBinaryAvailable('sox');
   const detail = available
     ? tryExec('sox --version 2>&1') ?? 'bundled/cached'
-    : 'Not found — will auto-download on `waxberry start`';
+    : 'Not found — will auto-download on `live-translate start`';
   return { label: 'Sox', passed: true, detail };
 }
 
@@ -69,7 +69,7 @@ function checkConfig(): CheckResult {
     return {
       label: 'Config',
       passed: false,
-      detail: 'Not configured. Run `waxberry config`',
+      detail: 'Not configured. Run `live-translate config`',
     };
   }
   const config = loadConfig();

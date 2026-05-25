@@ -8,7 +8,7 @@ import { resolveBinary } from '../utils/binaries.js';
 import { ensureRecorderReady } from './recorder.js';
 
 // All paths are functions so os.homedir() is evaluated at call time (testable via mocks).
-function getWaxberryHome(): string { return path.join(os.homedir(), '.waxberry'); }
+function getWaxberryHome(): string { return path.join(os.homedir(), '.live-translate'); }
 function getPidsDir(): string     { return path.join(getWaxberryHome(), 'pids'); }
 function getLogsDir(): string     { return path.join(getWaxberryHome(), 'logs'); }
 export function getVoicesDir(): string { return path.join(getWaxberryHome(), 'voices'); }

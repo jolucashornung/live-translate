@@ -1,11 +1,12 @@
 {
-  "name": "waxberry",
+  "name": "live-translate",
   "version": "0.1.0",
   "description": "Real-time English ↔ Mandarin speech translator. Local-first, cloud-optional.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "waxberry": "./dist/index.js"
+    "live-translate": "./dist/index.js",
+    "live-translate-mcp": "./dist/mcp.js"
   },
   "files": [
     "dist/",
@@ -23,6 +24,7 @@
   "dependencies": {
     "@huggingface/transformers": "^3.3.0",
     "@inquirer/prompts": "^8.4.3",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "chalk": "^5.3.0",
     "commander": "^12.0.0",
     "onnxruntime-node": "^1.20.0",

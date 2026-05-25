@@ -5,12 +5,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Binaries are resolved in priority order:
-//   1. ~/.waxberry/bin/<name>          — previously auto-downloaded
+//   1. ~/.live-translate/bin/<name>     — previously auto-downloaded
 //   2. <package>/bin/<platform>/<name> — bundled with npm package
 //   3. system PATH                     — existing user install (e.g. Homebrew)
 // If none found, attempts to download from the waxberry GitHub release.
 
-const RELEASE_BASE = 'https://github.com/jolucashornung/waxberry/releases/download/binaries-v1';
+const RELEASE_BASE = 'https://github.com/jolucashornung/live-translate/releases/download/binaries-v1';
 
 const DOWNLOAD_URLS: Record<string, Partial<Record<string, string>>> = {
   'espeak-ng': {
@@ -27,7 +27,7 @@ const DOWNLOAD_URLS: Record<string, Partial<Record<string, string>>> = {
   },
 };
 
-function getCacheDir(): string { return path.join(os.homedir(), '.waxberry', 'bin'); }
+function getCacheDir(): string { return path.join(os.homedir(), '.live-translate', 'bin'); }
 
 function getPkgBinDir(): string {
   const thisFile = fileURLToPath(import.meta.url);
@@ -49,7 +49,7 @@ function findOnPath(name: string): string | null {
 }
 
 async function downloadAndExtract(url: string, destDir: string): Promise<void> {
-  const tmpFile = path.join(os.tmpdir(), `waxberry-bin-${Date.now()}.tar.gz`);
+  const tmpFile = path.join(os.tmpdir(), `live-translate-bin-${Date.now()}.tar.gz`);
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

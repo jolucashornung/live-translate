@@ -60,7 +60,7 @@ function printSummary(config: Config): void {
   if (config.apiKey) console.log(`    API Key:   ${maskApiKey(config.apiKey)}`);
   if (config.provider === 'ollama') console.log(`    Ollama:    ${config.ollamaUrl}`);
   console.log('');
-  console.log('  Run `waxberry start` to start translating.');
+  console.log('  Run `live-translate start` to start translating.');
   console.log('');
 }
 
@@ -88,6 +88,6 @@ export async function runConfig(opts: ConfigOptions): Promise<void> {
   }
 
   saveConfig(config);
-  console.log(chalk.green('  ✓ Configuration saved to ~/.waxberry/config.json'));
+  console.log(chalk.green('  ✓ Configuration saved to ~/.live-translate/config.json'));
   printSummary(config);
 }

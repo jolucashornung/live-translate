@@ -97,6 +97,6 @@ export async function runStart(): Promise<void> {
   console.log('    Note:');
   printPrivacyNote(config.provider);
   console.log('');
-  console.log('  Run `waxberry` to start translating.');
+  console.log('  Run `live-translate` to start translating.');
   console.log('');
 }

@@ -11,7 +11,7 @@ import { PROVIDERS, MAX_RECORDING_MS } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
 
 function getTmpRecordingPath(): string {
-  return path.join(os.tmpdir(), `waxberry-rec-${Date.now()}.wav`);
+  return path.join(os.tmpdir(), `live-translate-rec-${Date.now()}.wav`);
 }
 
 function clearLine(): void {
@@ -48,7 +48,7 @@ function printResultBox(
 export async function runTranslate(): Promise<void> {
   const status = await checkHealth();
   if (!status.healthy) {
-    logger.error('Services are not running. Run `waxberry start` first.');
+    logger.error('Services are not running. Run `live-translate start` first.');
     process.exitCode = 1;
     return;
   }

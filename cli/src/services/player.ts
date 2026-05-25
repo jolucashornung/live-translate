@@ -15,7 +15,7 @@ function buildPlayArgs(filePath: string): { cmd: string; args: string[] } {
 
 export async function playAudio(audioBase64: string): Promise<void> {
   const audioBytes = Buffer.from(audioBase64, 'base64');
-  const tmpPath = path.join(os.tmpdir(), `waxberry-play-${Date.now()}.wav`);
+  const tmpPath = path.join(os.tmpdir(), `live-translate-play-${Date.now()}.wav`);
   fs.writeFileSync(tmpPath, audioBytes);
 
   const { cmd, args } = buildPlayArgs(tmpPath);

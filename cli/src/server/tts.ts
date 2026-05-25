@@ -11,7 +11,7 @@ import type { Routes } from './shared.js';
 
 const execFileAsync = promisify(execFile);
 
-const VOICE_DIR = process.env['PIPER_VOICE_DIR'] ?? path.join(os.homedir(), '.waxberry', 'voices');
+const VOICE_DIR = process.env['PIPER_VOICE_DIR'] ?? path.join(os.homedir(), '.live-translate', 'voices');
 const PORT = parseInt(process.env['PORT'] ?? '8003', 10);
 
 const LANGUAGE_VOICE_MAP: Record<string, string> = {

@@ -5,12 +5,11 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "live-translate": "./dist/index.js",
-    "live-translate-mcp": "./dist/mcp.js"
+    "live-translate": "dist/index.js",
+    "live-translate-mcp": "dist/mcp.js"
   },
   "files": [
-    "dist/",
-    "docker/"
+    "dist/"
   ],
   "engines": {
     "node": ">=18"

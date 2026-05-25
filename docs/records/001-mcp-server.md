@@ -2,28 +2,28 @@
 
 ## Context
 
-Waxberry is fully local and MIT licensed. The goal is to expand its reach into the Claude ecosystem for reputation building, without abandoning the "fully local, fully private" selling point.
+live-translate is fully local and MIT licensed. The goal is to expand its reach into the Claude ecosystem for reputation building, without abandoning the "fully local, fully private" selling point.
 
 ## Decision
 
-Add waxberry as an MCP server so Claude agents (Claude Code, Claude Desktop, custom agents) can call it as a tool. Claude is never in waxberry's runtime path — it remains the *caller*, not a component.
+Add live-translate as an MCP server so Claude agents (Claude Code, Claude Desktop, custom agents) can call it as a tool. Claude is never in live-translate's runtime path — it remains the *caller*, not a component.
 
 **Why this over alternatives:**
 - Claude agents (Option 1): puts Claude in the pipeline, breaks local/private guarantee
-- Waxberry as MCP server (Option 2): Claude calls waxberry, waxberry stays dumb and local
-- Claude can't do real-time audio I/O at all — waxberry fills a genuine gap
+- live-translate as MCP server (Option 2): Claude calls live-translate, the pipeline stays dumb and local
+- Claude can't do real-time audio I/O at all — live-translate fills a genuine gap
 
 ## Design
 
-### New package: `mcp/` (TypeScript, npm package `live-translate`)
+### Implementation: `cli/src/mcp.ts` (bin: `live-translate-mcp`)
 
-A thin MCP server (~50 lines) using `@modelcontextprotocol/sdk` that proxies calls to the orchestrator's existing REST API. The TypeScript services don't change.
+A thin MCP server using `@modelcontextprotocol/sdk` (stdio transport) that proxies calls to the orchestrator's existing REST API. Bundled in the `live-translate` npm package alongside the CLI.
 
 ```
 Claude agent
     │  calls tool
     ▼
-mcp/src/index.ts  (@modelcontextprotocol/sdk, stdio transport)
+cli/src/mcp.ts  (@modelcontextprotocol/sdk, stdio transport)
     │  HTTP POST
     ▼
 Orchestrator :8000  (existing, unchanged)
@@ -35,7 +35,7 @@ Orchestrator :8000  (existing, unchanged)
 // Translate speech audio. Returns original text, translation, and synthesised audio.
 async function translateSpeech(audioBase64: string, sampleRate = 16000): Promise<TranslationResult>
 
-// Check whether all waxberry services are running.
+// Check whether all live-translate services are running.
 async function healthCheck(): Promise<HealthResult>
 ```
 
@@ -54,11 +54,13 @@ async function healthCheck(): Promise<HealthResult>
   "mcpServers": {
     "live-translate": {
       "command": "npx",
-      "args": ["live-translate"]
+      "args": ["-y", "-p", "live-translate", "live-translate-mcp"]
     }
   }
 }
 ```
+
+Note: `-p live-translate` selects the package; `live-translate-mcp` is the bin entry within it. `live-translate` is a two-bin package — `npx live-translate` runs the CLI, not the MCP server.
 
 ## Distribution plan
 
@@ -69,7 +71,7 @@ async function healthCheck(): Promise<HealthResult>
 
 ## Acceptance criteria
 
-- [x] `npx live-translate` starts the MCP server without cloning the repo
+- [x] `npx -p live-translate live-translate-mcp` starts the MCP server without cloning the repo
 - [ ] Claude Desktop can call `translate_speech` and receive a valid `TranslationResult`
 - [ ] `health_check` returns degraded status if services are not running
 - [ ] README has a "Use as MCP server" section with the config snippet

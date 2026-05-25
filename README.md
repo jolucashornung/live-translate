@@ -73,6 +73,32 @@ Speech is recorded locally. Whisper transcribes it, the configured provider tran
 
 Logs are written to `~/.live-translate/logs/`.
 
+## Use as MCP Server
+
+Claude Desktop and other MCP clients can call live-translate as a tool. Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "live-translate": {
+      "command": "npx",
+      "args": ["-y", "-p", "live-translate", "live-translate-mcp"]
+    }
+  }
+}
+```
+
+This starts the MCP server, which exposes two tools:
+
+| Tool | Description |
+|------|-------------|
+| `translate_speech` | Translate base64 WAV audio between English and Mandarin. Returns original text, translation, and synthesised audio. |
+| `health_check` | Check whether all live-translate backend services are running. |
+
+The MCP server proxies to the local orchestrator — you must run `live-translate start` before Claude Desktop can call the tools. The `health_check` tool will return a degraded status if services are not running.
+
+The `LIVE_TRANSLATE_URL` environment variable overrides the default orchestrator address (`http://localhost:8000`).
+
 ## Prerequisites
 
 - Node.js 18+

@@ -33,7 +33,7 @@ def services_healthy():
     pytest.skip(
         f"Services did not become healthy within {_HEALTH_TIMEOUT_S}s. "
         f"Last status: {last_error}. "
-        "Run `make build` or `docker compose up -d` before running integration tests."
+        "Run `waxberry start` before running integration tests."
     )
 
 

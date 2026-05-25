@@ -83,10 +83,10 @@ Run `waxberry doctor` to verify your setup. `sox` and `espeak-ng` are downloaded
 
 | Component | Port | Language | Purpose |
 |-----------|------|----------|---------|
-| Orchestrator | 8000 | Python | Pipeline coordination |
-| ASR | 8001 | Python | Speech → text (faster-whisper) |
-| Translation | 8002 | Python | Text → text (configurable provider) |
-| TTS | 8003 | Python | Text → speech (Piper) |
+| Orchestrator | 8000 | TypeScript | Pipeline coordination |
+| ASR | 8001 | TypeScript | Speech → text (Whisper via @huggingface/transformers) |
+| Translation | 8002 | TypeScript | Text → text (configurable provider) |
+| TTS | 8003 | TypeScript | Text → speech (Piper) |
 | CLI | — | TypeScript | User interface and service management |
 
 Services run as local processes managed by the CLI. State and config live in `~/.waxberry/`.
@@ -94,41 +94,38 @@ Services run as local processes managed by the CLI. State and config live in `~/
 ## Development
 
 ```bash
-# Start backend services from source
-docker compose up --build
-
-# CLI in dev mode
+# CLI in dev mode (no build step required)
 cd cli && npm run dev
+
+# Build
+cd cli && npm run build
 ```
 
 ### Testing
 
 ```bash
-make test-unit   # unit tests per service (no running services required)
-make test-int    # end-to-end pipeline (all services must be running)
-make test-all    # both
+# Unit tests (no running services required)
+cd cli && npm test
+
+# Integration tests (requires waxberry start)
+python -m pytest tests/integration/ -v
 ```
 
 ### Project Structure
 
 ```
 waxberry/
-├── cli/                     # TypeScript CLI (npm package)
+├── cli/                     # TypeScript npm package (the whole product)
 │   ├── src/
 │   │   ├── commands/        # doctor, config, start, stop, status, translate
-│   │   ├── services/        # api, processes, recorder, player, configStore
+│   │   ├── server/          # asr.ts, translation.ts, tts.ts, orchestrator.ts
+│   │   ├── services/        # api, processes, recorder, player
 │   │   └── utils/           # constants, logger, binaries
 │   └── package.json
-├── services/
-│   ├── asr/                 # faster-whisper, port 8001
-│   ├── translation/         # configurable provider, port 8002
-│   ├── tts/                 # Piper TTS, port 8003
-│   └── orchestrator/        # FastAPI pipeline, port 8000
-├── shared/
-│   └── models.py            # Pydantic contracts (source of truth)
 ├── tests/
 │   └── integration/         # end-to-end tests (requires running services)
-└── Makefile
+└── docs/
+    └── records/             # design decisions and feature specs
 ```
 
 ## Hardware
@@ -138,7 +135,7 @@ waxberry/
 | Minimum | 8 GB | None (CPU only) | ~5 s |
 | Recommended | 16 GB | 6+ GB VRAM | < 1 s |
 
-Disk: ~5 GB for models and voice files.
+Disk: ~3 GB for models and voice files.
 
 ## License
 

@@ -73,7 +73,7 @@ async function loadVoices(): Promise<Record<string, PiperVoice>> {
     console.log(`Loading voice for '${lang}': ${filename}`);
     const config = loadVoiceConfig(configPath);
     const session = await ort.InferenceSession.create(modelPath, {
-      executionProviders: ['CPUExecutionProvider'],
+      executionProviders: ['cpu'],
     });
     loaded[lang] = { session, config };
   }

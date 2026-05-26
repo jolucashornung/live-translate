@@ -1,21 +1,53 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 
-// Mock @huggingface/transformers before importing asr.ts so the model doesn't load
+// Language token IDs matching onnx-community/whisper-base generation_config
+const SOT = 50258;
+const LANG_EN = 50259;
+const LANG_ZH = 50260;
+
+// Language probe result: a Tensor-like where [0].tolist() returns [SOT, LANG_TOKEN]
+const langProbe = (langTokenId: number) => ({
+  0: { tolist: () => [BigInt(SOT), BigInt(langTokenId)] },
+});
+
+const mockModelGenerate = vi.fn();
+const mockProcessor = vi.fn();
+const mockTranscriber = vi.fn();
+
+// Attach pipeline internals that detectAudioLanguage accesses via (transcriber as any)
+Object.assign(mockTranscriber, {
+  processor: mockProcessor,
+  model: {
+    generate: mockModelGenerate,
+    generation_config: {
+      decoder_start_token_id: SOT,
+      is_multilingual: true,
+      lang_to_id: { '<|zh|>': LANG_ZH, '<|en|>': LANG_EN },
+    },
+  },
+});
+
 vi.mock('@huggingface/transformers', () => ({
-  pipeline: vi.fn().mockResolvedValue(
-    vi.fn().mockResolvedValue([{ text: 'hello' }])
-  ),
+  pipeline: vi.fn().mockResolvedValue(mockTranscriber),
   env: { cacheDir: '' },
 }));
 
-// Import detectLanguage only — do NOT import the full module at top level since
-// it has top-level await that would trigger model loading.
-// We import the specific export after mocking.
+// Stub wavBase64ToFloat32 so POST /transcribe tests don't need a real WAV buffer.
+vi.mock('../../src/server/shared.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/server/shared.js')>();
+  return {
+    ...actual,
+    wavBase64ToFloat32: vi.fn().mockReturnValue({ samples: new Float32Array(1), sampleRate: 16000 }),
+  };
+});
+
 let detectLanguage: (text: string) => 'en' | 'zh';
+let routes: import('../../src/server/shared.js').Routes;
 
 beforeAll(async () => {
   const mod = await import('../../src/server/asr.js');
   detectLanguage = mod.detectLanguage;
+  routes = mod.routes;
 });
 
 describe('detectLanguage', () => {
@@ -53,5 +85,69 @@ describe('detectLanguage', () => {
   it('returns "zh" when just above 30% threshold', () => {
     // 4 CJK out of 10 non-space = 0.4 > 0.3 → 'zh'
     expect(detectLanguage('abcdef你好吗啊')).toBe('zh');
+  });
+});
+
+describe('POST /transcribe — native language probe', () => {
+  const transcribeHandler = async (body: unknown) =>
+    routes['POST /transcribe'](body);
+
+  beforeEach(() => {
+    mockModelGenerate.mockReset();
+    mockProcessor.mockReset();
+    mockTranscriber.mockReset();
+    mockProcessor.mockResolvedValue({ input_features: new Float32Array(1) });
+  });
+
+  it('detects Chinese and transcribes with language: chinese in a single pass', async () => {
+    mockModelGenerate.mockResolvedValue(langProbe(LANG_ZH));
+    mockTranscriber.mockResolvedValue([{ text: '你好' }]);
+
+    const result = await transcribeHandler({ audio_base64: 'dGVzdA==' }) as Record<string, unknown>;
+
+    expect(result.text).toBe('你好');
+    expect(result.language).toBe('zh');
+    // One probe call, one transcription call
+    expect(mockModelGenerate).toHaveBeenCalledTimes(1);
+    expect(mockTranscriber).toHaveBeenCalledTimes(1);
+    expect(mockTranscriber).toHaveBeenCalledWith(
+      expect.any(Float32Array),
+      { language: 'chinese', task: 'transcribe' },
+    );
+  });
+
+  it('detects English and transcribes with language: english in a single pass', async () => {
+    mockModelGenerate.mockResolvedValue(langProbe(LANG_EN));
+    mockTranscriber.mockResolvedValue([{ text: 'Hello' }]);
+
+    const result = await transcribeHandler({ audio_base64: 'dGVzdA==' }) as Record<string, unknown>;
+
+    expect(result.text).toBe('Hello');
+    expect(result.language).toBe('en');
+    expect(mockModelGenerate).toHaveBeenCalledTimes(1);
+    expect(mockTranscriber).toHaveBeenCalledTimes(1);
+    expect(mockTranscriber).toHaveBeenCalledWith(
+      expect.any(Float32Array),
+      { language: 'english', task: 'transcribe' },
+    );
+  });
+
+  it('probe passes decoder_start_token_id and max_new_tokens: 1 to model.generate', async () => {
+    mockModelGenerate.mockResolvedValue(langProbe(LANG_EN));
+    mockTranscriber.mockResolvedValue([{ text: 'test' }]);
+
+    await transcribeHandler({ audio_base64: 'dGVzdA==' });
+
+    expect(mockModelGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decoder_input_ids: [SOT],
+        max_new_tokens: 1,
+        do_sample: false,
+      }),
+    );
+  });
+
+  it('throws when audio_base64 is missing', async () => {
+    await expect(transcribeHandler({})).rejects.toThrow('audio_base64 is required');
   });
 });

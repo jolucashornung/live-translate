@@ -15,7 +15,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/index.js dist/mcp.js",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest"

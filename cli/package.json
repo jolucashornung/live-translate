@@ -1,6 +1,6 @@
 {
   "name": "live-translate",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "description": "Real-time English ↔ Mandarin speech translator. Local-first, cloud-optional.",
   "license": "MIT",
   "type": "module",

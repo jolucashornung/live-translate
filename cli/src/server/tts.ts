@@ -19,6 +19,11 @@ const LANGUAGE_VOICE_MAP: Record<string, string> = {
   zh: 'zh_CN-huayan-medium.onnx',
 };
 
+// zh_CN-huayan speaks fast at the model's default — 1.2 brings it to a natural pace
+const LANGUAGE_LENGTH_SCALE: Record<string, number> = {
+  zh: 1.2,
+};
+
 export interface VoiceConfig {
   sample_rate: number;
   espeak_voice: string;
@@ -72,6 +77,7 @@ async function loadVoices(): Promise<Record<string, PiperVoice>> {
     }
     console.log(`Loading voice for '${lang}': ${filename}`);
     const config = loadVoiceConfig(configPath);
+    if (lang in LANGUAGE_LENGTH_SCALE) config.length_scale = LANGUAGE_LENGTH_SCALE[lang]!;
     const session = await ort.InferenceSession.create(modelPath, {
       executionProviders: ['cpu'],
     });
